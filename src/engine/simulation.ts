@@ -34,7 +34,8 @@ import {
   setParcel,
   snapshot,
 } from './state';
-import type { EventDef, FinancialBreakdown, GameState, HistoryEntry } from './types';
+import { concatL, joinL, l } from './text';
+import type { EventDef, FinancialBreakdown, GameState, HistoryEntry, L } from './types';
 
 const carShare = (a: number) => 0.25 + 0.6 * (a / 100);
 const DEMAND_K = 620 / carShare(45);
@@ -118,10 +119,17 @@ export function academicShortfall(s: GameState): number {
   return Math.max(0, academicTarget(s) - countParcels(s, 'academic'));
 }
 
-const HALL_NAMES = [
-  'Hargrove Hall', 'the Whitcombe Laboratories', 'Delacroix Hall', 'the Center for Interdisciplinary Synergy',
-  'Bramwell Library Annex', 'the Ostrander Institute', 'Quill Hall', 'the Halvorsen Life Sciences Building',
-  'Fenwick Hall', 'the Center for Advanced Studies of Studies',
+const HALL_NAMES: L[] = [
+  l('Hargrove Hall', '哈格罗夫楼'),
+  l('the Whitcombe Laboratories', '惠特科姆实验室'),
+  l('Delacroix Hall', '德拉克鲁瓦楼'),
+  l('the Center for Interdisciplinary Synergy', '跨学科协同中心'),
+  l('Bramwell Library Annex', '布拉姆韦尔图书馆附楼'),
+  l('the Ostrander Institute', '奥斯特兰德研究所'),
+  l('Quill Hall', '奎尔楼'),
+  l('the Halvorsen Life Sciences Building', '哈尔沃森生命科学楼'),
+  l('Fenwick Hall', '芬威克楼'),
+  l('the Center for Advanced Studies of Studies', '研究之研究高等中心'),
 ];
 
 // ---------------------------------------------------------------------------
@@ -140,12 +148,12 @@ export function submitPolicies(prev: GameState, actionIds: string[]): GameState 
     if (!p || !isEraAvailable(p, s.year)) continue;
     const reason = p.unavailable?.(s);
     if (reason) {
-      s.turnNotes.push(`${p.name} could not proceed: ${reason}.`);
+      s.turnNotes.push(l(`${p.name.en} could not proceed: ${reason.en}.`, `${p.name.zh}未能实施：${reason.zh}。`));
       continue;
     }
     const cost = p.cost(s);
     if (cost > 0 && s.cash + C.CREDIT_LINE < cost) {
-      s.turnNotes.push(`${p.name} was abandoned for lack of funds.`);
+      s.turnNotes.push(l(`${p.name.en} was abandoned for lack of funds.`, `${p.name.zh}因资金不足而放弃。`));
       continue;
     }
     s.cash -= cost;
@@ -205,7 +213,7 @@ export function resolveEvent(prev: GameState, choiceIndex: number): GameState {
     const choice = ev.choices[idx];
     const frag = choice.apply(s);
     s.usedEvents.push(ev.id);
-    eventRecord = { title: ev.title, choice: frag };
+    eventRecord = { id: ev.id, title: ev.title, choice: frag };
   }
   return simulatePeriod(s, eventRecord);
 }
@@ -252,16 +260,21 @@ function simulatePeriod(s: GameState, eventRecord: HistoryEntry['event']): GameS
       if (wasGreen) {
         s.ind.sustainability = clamp(s.ind.sustainability - 3);
         s.ind.students = clamp(s.ind.students - 2);
-        s.turnNotes.push(`With no vacant land left, ${hall} was built on a campus green.`);
+        s.turnNotes.push(l(`With no vacant land left, ${hall.en} was built on a campus green.`, `由于没有空地，${hall.zh}建在了校园草坪上。`));
       } else {
-        s.turnNotes.push(`The university built ${hall} on vacant land.`);
+        s.turnNotes.push(l(`The university built ${hall.en} on vacant land.`, `学校在空地上建起了${hall.zh}。`));
       }
     }
   }
   const shortfall = academicShortfall(s);
   if (shortfall > 0) {
     s.counters.academicShortfallTurns++;
-    s.turnNotes.push(`Academic space shortfall: ${shortfall} parcel${shortfall > 1 ? 's' : ''}. Departments are holding seminars in the parking office.`);
+    s.turnNotes.push(
+      l(
+        `Academic space shortfall: ${shortfall} parcel${shortfall > 1 ? 's' : ''}. Departments are holding seminars in the parking office.`,
+        `教学用地缺口：${shortfall}块地。各院系只好在停车办公室里上研讨课。`,
+      ),
+    );
   }
 
   // 3. Demand, capacity, occupancy.
@@ -371,7 +384,14 @@ function simulatePeriod(s: GameState, eventRecord: HistoryEntry['event']): GameS
     if (p.type === 'garage') {
       const was = p.condition;
       p.condition = clamp(p.condition - C.GARAGE_DECAY_PER_TURN * scale);
-      if (was >= 40 && p.condition < 40) s.turnNotes.push(`${p.name ?? 'A garage'} has deteriorated; capacity reduced and maintenance doubled.`);
+      if (was >= 40 && p.condition < 40) {
+        s.turnNotes.push(
+          l(
+            `${p.name?.en ?? 'A garage'} has deteriorated; capacity reduced and maintenance doubled.`,
+            `${p.name?.zh ?? '一座停车楼'}已经老化：容量下降，维护费翻倍。`,
+          ),
+        );
+      }
     }
   }
   for (const d of s.debts) d.turnsRemaining--;
@@ -382,11 +402,25 @@ function simulatePeriod(s: GameState, eventRecord: HistoryEntry['event']): GameS
 
   // 9. Outcome notes.
   if (shortageRatio > 0.05) {
-    s.turnNotes.push(`Parking shortage: ${Math.round(demand - cap)} more cars than spaces. ${spill > 0.1 ? 'Neighborhood streets absorbed the overflow.' : ''}`.trim());
+    const gap = Math.round(demand - cap);
+    s.turnNotes.push(
+      l(
+        `Parking shortage: ${gap} more cars than spaces.${spill > 0.1 ? ' Neighborhood streets absorbed the overflow.' : ''}`,
+        `停车短缺：车辆比车位多${gap}辆。${spill > 0.1 ? '多出来的车停进了周边社区的街道。' : ''}`,
+      ),
+    );
   } else if (vacancyRatio > 0.2) {
-    s.turnNotes.push(`${Math.round(vacancyRatio * 100)}% of spaces sat empty, generating maintenance costs and induced demand.`);
+    const v = Math.round(vacancyRatio * 100);
+    s.turnNotes.push(
+      l(
+        `${v}% of spaces sat empty, generating maintenance costs and induced demand.`,
+        `${v}%的车位空置，既产生维护成本，又诱发新的需求。`,
+      ),
+    );
   }
-  if (s.cash < 0) s.turnNotes.push('Cash reserves are negative; the department is borrowing at 4% interest.');
+  if (s.cash < 0) {
+    s.turnNotes.push(l('Cash reserves are negative; the department is borrowing at 4% interest.', '现金储备为负，部门正以4%的利率借款。'));
+  }
 
   // 10. History and advance.
   const endYear = Math.min(END_YEAR, startYear + years);
@@ -396,7 +430,7 @@ function simulatePeriod(s: GameState, eventRecord: HistoryEntry['event']): GameS
     endYear,
     era: era.id,
     text: historyText,
-    actions: s.pendingActions.map((id) => getPolicy(id)?.name ?? id),
+    actions: [...s.pendingActions],
     event: eventRecord,
     tags: tagsFor(s),
   });
@@ -427,20 +461,14 @@ function tagsFor(s: GameState): string[] {
   return Array.from(new Set(tags));
 }
 
-function joinList(items: string[]): string {
-  if (items.length === 0) return '';
-  if (items.length === 1) return items[0];
-  return `${items.slice(0, -1).join(', ')}, and ${items[items.length - 1]}`;
-}
-
-const CLOSERS = [
-  'The Board characterized the outcome as a temporary response to long-term demand.',
-  'A follow-up study was commissioned.',
-  'The Faculty Senate reserved the right to be upset later.',
-  'The Planning Department filed a memorandum that nobody read.',
-  'The Parking Office described the period as "operationally eventful."',
-  'The student newspaper ran a cartoon that the administration pretended not to see.',
-  'Trustees praised the decision without asking what it was.',
+const CLOSERS: L[] = [
+  l('The Board characterized the outcome as a temporary response to long-term demand.', '校董会称这一结果是应对长期需求的临时举措。'),
+  l('A follow-up study was commissioned.', '校方又委托了一项后续研究。'),
+  l('The Faculty Senate reserved the right to be upset later.', '教授评议会保留日后不满的权利。'),
+  l('The Planning Department filed a memorandum that nobody read.', '规划部门提交了一份没人读的备忘录。'),
+  l('The Parking Office described the period as "operationally eventful."', '停车办公室称这一时期“运营上颇为多事”。'),
+  l('The student newspaper ran a cartoon that the administration pretended not to see.', '学生报刊登了一幅漫画，校方假装没看见。'),
+  l('Trustees praised the decision without asking what it was.', '校董们对这项决定赞不绝口，却没人问它是什么。'),
 ];
 
 function composeHistory(
@@ -449,21 +477,43 @@ function composeHistory(
   end: number,
   eventRecord: HistoryEntry['event'],
   o: { shortageRatio: number; vacancyRatio: number; occupied: number; cap: number },
-): string {
-  const parts: string[] = [];
+): L {
+  const parts: L[] = [];
   if (s.turnLog.length > 0) {
-    parts.push(`The administration ${joinList(s.turnLog)}.`);
+    const acts = joinL(s.turnLog);
+    parts.push(l(`The administration ${acts.en}.`, `校方${acts.zh}。`));
   } else {
-    parts.push('The administration took no formal action, citing the need for further study.');
+    parts.push(l('The administration took no formal action, citing the need for further study.', '校方以“需要进一步研究”为由，未采取任何正式行动。'));
   }
-  if (eventRecord) parts.push(`Confronted with "${eventRecord.title}", the university ${eventRecord.choice}.`);
+  if (eventRecord) {
+    parts.push(
+      l(
+        `Confronted with "${eventRecord.title.en}", the university ${eventRecord.choice.en}.`,
+        `面对“${eventRecord.title.zh}”，校方${eventRecord.choice.zh}。`,
+      ),
+    );
+  }
   if (o.shortageRatio > 0.15) {
-    parts.push(`Demand exceeded supply by ${Math.round(o.shortageRatio * 100)}%, and commuters colonized the surrounding streets.`);
+    const pct = Math.round(o.shortageRatio * 100);
+    parts.push(
+      l(
+        `Demand exceeded supply by ${pct}%, and commuters colonized the surrounding streets.`,
+        `需求超出供给${pct}%，通勤者占领了周边街道。`,
+      ),
+    );
   } else if (o.vacancyRatio > 0.25) {
-    parts.push(`Roughly ${Math.round(o.vacancyRatio * 100)}% of spaces stood empty, a fact the Board attributed to "future growth."`);
+    const pct = Math.round(o.vacancyRatio * 100);
+    parts.push(
+      l(
+        `Roughly ${pct}% of spaces stood empty, a fact the Board attributed to "future growth."`,
+        `约${pct}%的车位空置，校董会将其归因于“未来增长”。`,
+      ),
+    );
   } else {
-    parts.push(`Occupancy stood near ${o.cap > 0 ? Math.round((o.occupied / o.cap) * 100) : 0}%.`);
+    const occ = o.cap > 0 ? Math.round((o.occupied / o.cap) * 100) : 0;
+    parts.push(l(`Occupancy stood near ${occ}%.`, `车位占用率约为${occ}%。`));
   }
   parts.push(hashPick(CLOSERS, `${s.seed}-${start}`));
-  return `${start}–${end} — ${parts.join(' ')}`;
+  const body = concatL(parts, ' ', '');
+  return l(`${start}–${end} — ${body.en}`, `${start}–${end}年 —— ${body.zh}`);
 }

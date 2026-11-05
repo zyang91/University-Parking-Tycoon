@@ -1,6 +1,15 @@
 // Core type definitions for the University Parking Tycoon simulation.
 // All simulation logic lives in src/engine and is independent of React.
 
+/** Supported interface languages. */
+export type Lang = 'en' | 'zh';
+
+/** A bilingual text value. All player-facing text produced by the engine uses this type. */
+export interface L {
+  en: string;
+  zh: string;
+}
+
 export type EraId = 'postwar' | 'expansion' | 'institutional' | 'reform' | 'modern';
 
 export type ParcelType = 'academic' | 'lot' | 'garage' | 'green' | 'vacant';
@@ -13,7 +22,7 @@ export interface Parcel {
   /** Structural condition 0–100; only meaningful for garages. */
   condition: number;
   /** Optional display name (garages get named after donors, naturally). */
-  name?: string;
+  name?: L;
 }
 
 export type CommitmentId =
@@ -36,7 +45,7 @@ export interface Commitment {
 }
 
 export interface Debt {
-  label: string;
+  label: L;
   annualPayment: number;
   turnsRemaining: number;
 }
@@ -72,9 +81,10 @@ export interface HistoryEntry {
   year: number;
   endYear: number;
   era: EraId;
-  text: string;
+  text: L;
+  /** Policy ids applied this turn (rendered with localized names). */
   actions: string[];
-  event?: { title: string; choice: string };
+  event?: { id: string; title: L; choice: L };
   tags: string[];
 }
 
@@ -100,8 +110,8 @@ export interface TurnReport {
   endYear: number;
   before: Snapshot;
   after: Snapshot;
-  notes: string[];
-  historyText: string;
+  notes: L[];
+  historyText: L;
   annual: FinancialBreakdown;
 }
 
@@ -153,9 +163,9 @@ export interface GameState {
   /** Actions chosen this turn (ids), applied when the turn is submitted. */
   pendingActions: string[];
   pendingEventId: string | null;
-  turnNotes: string[];
+  turnNotes: L[];
   /** Text fragments describing this turn's decisions, for the history log. */
-  turnLog: string[];
+  turnLog: L[];
 
   history: HistoryEntry[];
   stats: Snapshot[];
@@ -177,23 +187,23 @@ export interface Effects {
   bonusCapacity?: number;
   priceMult?: number;
   flags?: Record<string, boolean>;
-  note?: string;
+  note?: L;
 }
 
 export type PolicyCategory = 'pricing' | 'infrastructure' | 'tdm' | 'administrative';
 
 export interface PolicyTag {
-  label: string;
+  label: L;
   tone: 'good' | 'bad' | 'neutral';
 }
 
 export interface PolicyDef {
   id: string;
-  name: string;
+  name: L;
   category: PolicyCategory;
-  description: string;
+  description: L;
   /** Short satirical flavor line. */
-  flavor: string;
+  flavor: L;
   minYear: number;
   maxYear?: number;
   tags: PolicyTag[];
@@ -201,26 +211,26 @@ export interface PolicyDef {
   cost: (s: GameState) => number;
   /** Recurring annual cost description, if any. */
   recurring?: (s: GameState) => number;
-  /** Returns a reason string if unavailable, or null if available. */
-  unavailable?: (s: GameState) => string | null;
+  /** Returns a reason if unavailable, or null if available. */
+  unavailable?: (s: GameState) => L | null;
   /** Mutates a draft state; returns a past-tense history fragment. */
-  apply: (s: GameState) => string;
+  apply: (s: GameState) => L;
 }
 
 export interface EventChoice {
-  label: string;
-  detail: string;
+  label: L;
+  detail: L;
   /** Mutates a draft state; returns a past-tense history fragment. */
-  apply: (s: GameState) => string;
+  apply: (s: GameState) => L;
   /** Optional requirement for this choice. Returns reason if unavailable. */
-  unavailable?: (s: GameState) => string | null;
+  unavailable?: (s: GameState) => L | null;
 }
 
 export interface EventDef {
   id: string;
-  title: string;
+  title: L;
   eras: EraId[];
-  description: (s: GameState) => string;
+  description: (s: GameState) => L;
   condition?: (s: GameState) => boolean;
   /** Relative selection weight (default 1). */
   weight?: number | ((s: GameState) => number);
@@ -229,24 +239,24 @@ export interface EventDef {
 
 export interface EraDef {
   id: EraId;
-  name: string;
+  name: L;
   start: number;
   end: number;
-  theme: string;
+  theme: L;
   /** University population growth multiplier per five-year turn. */
   growth: number;
   /** Cultural drift in automobile dependence per turn. */
   autoDrift: number;
   /** Real land/construction cost multiplier. */
   landCost: number;
-  president: string;
+  president: L;
   /** Drift in regional transit quality per turn. */
   transitDrift: number;
 }
 
 export interface Ending {
   id: string;
-  title: string;
-  summary: string;
-  explanation: string;
+  title: L;
+  summary: L;
+  explanation: L;
 }
