@@ -8,3 +8,4 @@ export * from './briefing';
 export * from './endings';
 export * from './save';
 export * from './rng';
+export * from './text';

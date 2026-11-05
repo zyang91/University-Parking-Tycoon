@@ -1,37 +1,51 @@
 import { academicShortfall, academicTarget, capacity, countParcels, eraFor, type GameState } from '../engine';
+import { useI18n } from '../i18n/I18nContext';
+import type { StringKey } from '../i18n/strings';
 import CampusMap from './CampusMap';
 import Dashboard from './Dashboard';
 
 export default function CampusView({ state }: { state: GameState }) {
-  const rows: [string, number, string][] = [
-    ['Academic buildings', countParcels(state, 'academic'), `Target for current enrollment: ${academicTarget(state)}`],
-    ['Surface lots', countParcels(state, 'lot'), '250 spaces each'],
-    ['Parking garages', countParcels(state, 'garage'), '800 spaces each'],
-    ['Green spaces', countParcels(state, 'green'), 'Boost sustainability, students and neighbors'],
-    ['Vacant parcels', countParcels(state, 'vacant'), 'Available for academic development'],
+  const { t, tx, lang } = useI18n();
+  const rows: [StringKey, number, string][] = [
+    ['campus.academic', countParcels(state, 'academic'), t('campus.academicNote', { n: academicTarget(state) })],
+    ['campus.lots', countParcels(state, 'lot'), t('campus.lotsNote')],
+    ['campus.garages', countParcels(state, 'garage'), t('campus.garagesNote')],
+    ['campus.greens', countParcels(state, 'green'), t('campus.greensNote')],
+    ['campus.vacant', countParcels(state, 'vacant'), t('campus.vacantNote')],
   ];
+  const garages = state.parcels
+    .filter((p) => p.type === 'garage')
+    .map((p) => `${p.name ? tx(p.name) : t('map.parkingGarage')} (${Math.round(p.condition)}%)`)
+    .join(lang === 'zh' ? '、' : ', ');
+  const shortfall = academicShortfall(state);
   return (
     <div className="page">
       <div className="page-inner">
-        <h2>Campus Overview</h2>
-        <p className="muted">{state.year} · {eraFor(state.year).name} · enrollment index {state.popIndex.toFixed(2)}× 1948 · regional transit quality {Math.round(state.transitQuality)}/100</p>
+        <h2>{t('campus.title')}</h2>
+        <p className="muted">
+          {t('campus.meta', { year: state.year, era: tx(eraFor(state.year).name), pop: state.popIndex.toFixed(2), tq: Math.round(state.transitQuality) })}
+        </p>
         <div className="two-col" style={{ gridTemplateColumns: '1.2fr 1fr' }}>
           <div>
             <CampusMap state={state} />
             <section className="panel" style={{ marginTop: 12 }}>
-              <h3 className="panel-title">Land Inventory (100 units, 5 per parcel)</h3>
+              <h3 className="panel-title">{t('campus.inventory')}</h3>
               <table className="delta-table">
                 <tbody>
                   {rows.map(([label, n, note]) => (
-                    <tr key={label}><td>{label}<div className="small muted">{note}</div></td><td className="num">{n}</td><td className="num">{n * 5} units</td></tr>
+                    <tr key={label}>
+                      <td>{t(label)}<div className="small muted">{note}</div></td>
+                      <td className="num">{n}</td>
+                      <td className="num">{t('campus.units', { n: n * 5 })}</td>
+                    </tr>
                   ))}
                 </tbody>
               </table>
-              {academicShortfall(state) > 0 && <p className="small down" style={{ marginTop: 8 }}>The academic mission needs {academicShortfall(state)} more parcel(s) than it has.</p>}
+              {shortfall > 0 && <p className="small down" style={{ marginTop: 8 }}>{t('campus.needs', { n: shortfall })}</p>}
               <p className="small muted" style={{ marginTop: 8 }}>
-                Garages: {state.parcels.filter((p) => p.type === 'garage').map((p) => `${p.name ?? 'Garage'} (${Math.round(p.condition)}%)`).join(', ') || 'none'}.
-                {state.flags.annexLot && ' Annex lot: 400 spaces on former rowhouse blocks.'}
-                {' '}Effective capacity: {capacity(state).toLocaleString()} spaces.
+                {t('campus.garageList', { list: garages || t('campus.none') })}
+                {state.flags.annexLot && t('campus.annex')}
+                {t('campus.effective', { n: capacity(state).toLocaleString() })}
               </p>
             </section>
           </div>

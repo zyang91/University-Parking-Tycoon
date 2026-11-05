@@ -10,7 +10,11 @@ import {
   countParcels,
   createInitialState,
   deserialize,
+  ERAS,
   EVENTS,
+  evaluate,
+  getBriefing,
+  money,
   eligibleEvents,
   getEvent,
   getPolicy,
@@ -208,17 +212,18 @@ describe('7. path dependence accumulation and reversal', () => {
 describe('8. era-specific policy availability', () => {
   it('garages, bike lanes, and cash-out unlock in later eras', () => {
     const s = createInitialState(1);
-    expect(policyBlocker(s, getPolicy('build_garage')!, [])).toMatch(/Unlocks/);
-    expect(policyBlocker(s, getPolicy('bike_infra')!, [])).toMatch(/Unlocks/);
-    expect(policyBlocker(s, getPolicy('cash_out')!, [])).toMatch(/Unlocks/);
+    expect(policyBlocker(s, getPolicy('build_garage')!, [])?.en).toMatch(/Unlocks/);
+    expect(policyBlocker(s, getPolicy('bike_infra')!, [])?.en).toMatch(/Unlocks/);
+    expect(policyBlocker(s, getPolicy('cash_out')!, [])?.en).toMatch(/Unlocks/);
+    expect(policyBlocker(s, getPolicy('cash_out')!, [])?.zh).toMatch(/1995年解锁/);
     s.year = 2003;
     expect(policyBlocker(s, getPolicy('cash_out')!, [])).toBeNull();
     expect(policyBlocker(s, getPolicy('bike_infra')!, [])).toBeNull();
   });
   it('enforces the three-action limit and one pricing decision per turn', () => {
     const s = createInitialState(1);
-    expect(policyBlocker(s, getPolicy('price_up_25')!, ['price_up_10'])).toMatch(/pricing/);
-    expect(policyBlocker(s, getPolicy('committee')!, ['build_lot', 'transit_subsidy', 'price_up_10'])).toMatch(/limit/);
+    expect(policyBlocker(s, getPolicy('price_up_25')!, ['price_up_10'])?.en).toMatch(/pricing/);
+    expect(policyBlocker(s, getPolicy('committee')!, ['build_lot', 'transit_subsidy', 'price_up_10'])?.en).toMatch(/limit/);
   });
   it('defines at least 10 policies and 25 events with valid eras', () => {
     expect(POLICIES.filter((p) => !p.id.startsWith('end_')).length).toBeGreaterThanOrEqual(10);
@@ -246,7 +251,8 @@ describe('9. event conditions and outcome application', () => {
     const r = resolveEvent(s, 1);
     expect(r.flags.compactStalls).toBe(true);
     expect(r.usedEvents).toContain('tailfins');
-    expect(r.history[0].event?.title).toBe(getEvent('tailfins')!.title);
+    expect(r.history[0].event?.title).toEqual(getEvent('tailfins')!.title);
+    expect(r.history[0].event?.id).toBe('tailfins');
   });
   it('falls back to an available choice when the chosen one is blocked', () => {
     const s = submitPolicies(createInitialState(7), []);
@@ -263,7 +269,8 @@ describe('9. event conditions and outcome application', () => {
         s.counters.committees = 2;
         if (c.unavailable?.(s)) return;
         const frag = c.apply(s);
-        expect(typeof frag).toBe('string');
+        expect(frag.en.length).toBeGreaterThan(0);
+        expect(frag.zh.length).toBeGreaterThan(0);
         assertValid(s);
       });
     }
@@ -361,5 +368,80 @@ describe('12. end-game classification', () => {
     const committees = playFull(1, () => ['committee']);
     const ids = new Set([asphalt, transit, committees].map((s) => classifyEnding(s).id));
     expect(ids.size).toBe(3);
+  });
+});
+
+describe('13. bilingual content (English / Chinese)', () => {
+  const hasCJK = (t: string) => /[\u4e00-\u9fff]/.test(t);
+  const checkL = (x: { en: string; zh: string }, where: string) => {
+    expect(x.en.trim().length, `${where} (en)`).toBeGreaterThan(0);
+    expect(x.zh.trim().length, `${where} (zh)`).toBeGreaterThan(0);
+    expect(hasCJK(x.zh), `${where} (zh) should contain Chinese`).toBe(true);
+  };
+
+  it('every era, policy, and event has English and Chinese text', () => {
+    const s = createInitialState(1);
+    s.year = 2003;
+    s.counters.committees = 2;
+    for (const era of ERAS) {
+      checkL(era.name, `era ${era.id}`);
+      checkL(era.theme, `era theme ${era.id}`);
+      checkL(era.president, `president ${era.id}`);
+    }
+    for (const p of POLICIES) {
+      checkL(p.name, `policy ${p.id}`);
+      checkL(p.description, `policy desc ${p.id}`);
+      checkL(p.flavor, `policy flavor ${p.id}`);
+      p.tags.forEach((t) => expect(t.label.zh.length).toBeGreaterThan(0));
+    }
+    for (const e of EVENTS) {
+      checkL(e.title, `event ${e.id}`);
+      checkL(e.description(s), `event desc ${e.id}`);
+      e.choices.forEach((c, i) => {
+        checkL(c.label, `event ${e.id} choice ${i}`);
+        checkL(c.detail, `event ${e.id} detail ${i}`);
+      });
+    }
+  });
+
+  it('history, notes, briefings, and evaluations are generated in both languages', () => {
+    const s = playFull(8, (st) => (st.turn % 2 ? ['build_lot', 'committee'] : ['transit_subsidy', 'price_up_10']));
+    for (const h of s.history) {
+      checkL(h.text, `history ${h.year}`);
+      if (h.event) {
+        checkL(h.event.title, `history event ${h.year}`);
+        checkL(h.event.choice, `history choice ${h.year}`);
+      }
+    }
+    s.lastReport!.notes.forEach((n, i) => checkL(n, `note ${i}`));
+    const ev = evaluate(s);
+    checkL(ev.ending.title, 'ending title');
+    checkL(ev.ending.summary, 'ending summary');
+    checkL(ev.ending.explanation, 'ending explanation');
+    ev.grades.forEach((g) => { checkL(g.label, 'grade label'); checkL(g.note, 'grade note'); });
+    ev.influences.forEach((t, i) => checkL(t, `influence ${i}`));
+    const b = getBriefing(createInitialState(3));
+    checkL(b.message, 'briefing');
+    checkL(b.crisis.title, 'crisis');
+  });
+
+  it('language never affects the simulation outcome', () => {
+    // Text is data; the same seed and decisions give identical numbers.
+    const a = playFull(55, () => ['price_up_10']);
+    const b = playFull(55, () => ['price_up_10']);
+    expect(a.stats).toEqual(b.stats);
+  });
+
+  it('formats money in both languages', () => {
+    expect(money(2_000_000, 'en')).toBe('$2.00M');
+    expect(money(2_000_000, 'zh')).toBe('$200万');
+    expect(money(34_000, 'zh')).toBe('$3.4万');
+    expect(money(-150_000, 'zh')).toBe('−$15万');
+  });
+
+  it('rejects saves from the previous single-language version', () => {
+    const old = JSON.parse(serialize(createInitialState(1)));
+    old.version = 1;
+    expect(deserialize(JSON.stringify(old))).toMatchObject({ ok: false, reason: 'incompatible' });
   });
 });

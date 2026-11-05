@@ -6,6 +6,8 @@ A satirical, turn-based campus planning simulation. You are the Vice President f
 
 It runs entirely in the browser: no backend, no accounts, no external services. Saves go to `localStorage`.
 
+**Languages:** English and Simplified Chinese (简体中文). Switch at any time in **Settings** (gear icon, on the title screen or in the top bar). The choice is remembered per browser and defaults to Chinese when the browser language is Chinese.
+
 ## Quick start
 
 ```bash
@@ -64,11 +66,19 @@ src/engine/       Pure TypeScript simulation (no React)
   endings.ts      Ending classification and evaluation
   save.ts         Versioned localStorage save/load with validation
   rng.ts          Seeded PRNG
+  text.ts         Bilingual text helpers ({ en, zh } values, list joining, money formatting)
+src/i18n/         Interface string dictionary and language context
 src/content/      Planning concepts and historical-source registry
 src/components/   React UI (map, desk, dashboard, views)
 tests/            Vitest suite for the engine
 scripts/          Balance autoplay script
 ```
+
+## Localization
+
+All player-facing text the engine generates (policy and event text, briefings, history entries, staff notes, endings, evaluations) is stored as a bilingual `{ en, zh }` value. The history log is therefore saved in both languages, and switching language also translates past entries. Interface strings live in `src/i18n/strings.ts`. The Chinese dictionary is typed against the English one, so a missing translation fails the build. The test suite checks that every era, policy, event, choice, and generated history entry has non-empty Chinese text. Language never affects the simulation.
+
+Saves use format version 2. Version 1 saves (English-only) are reported as incompatible and can be discarded from the title screen.
 
 ## Historical content policy
 

@@ -23,5 +23,5 @@ for (const seed of [1, 42]) for (const [name, strat] of Object.entries(strategie
   while (s.phase !== 'ended') s = playTurn(s, strat(s), seed % 3);
   const ev = evaluate(s);
   const r = (n: number) => Math.round(n);
-  console.log(`${seed} ${name.padEnd(9)} end=${ev.ending.title.padEnd(28)} cash=${r(s.cash/1000)}k net=${r(s.lastNetRevenue/1000)}k cap=${capacity(s)} dem=${r(s.demand)} price=${s.price} F=${r(s.ind.faculty)} S=${r(s.ind.students)} N=${r(s.ind.neighborhood)} Sus=${r(s.ind.sustainability)} A=${r(s.ind.autoDependence)} I=${r(s.ind.inertia)} gar=${countParcels(s,'garage')} lot=${countParcels(s,'lot')} grade=${ev.overallGrade}`);
+  console.log(`${seed} ${name.padEnd(9)} end=${ev.ending.title.en.padEnd(28)} cash=${r(s.cash/1000)}k net=${r(s.lastNetRevenue/1000)}k cap=${capacity(s)} dem=${r(s.demand)} price=${s.price} F=${r(s.ind.faculty)} S=${r(s.ind.students)} N=${r(s.ind.neighborhood)} Sus=${r(s.ind.sustainability)} A=${r(s.ind.autoDependence)} I=${r(s.ind.inertia)} gar=${countParcels(s,'garage')} lot=${countParcels(s,'lot')} grade=${ev.overallGrade}`);
 }

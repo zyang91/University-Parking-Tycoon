@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { capacity, hasCommitment, type GameState, type Parcel } from '../engine';
+import { useI18n, type I18n } from '../i18n/I18nContext';
 
 const COLS = 5;
 const PW = 56;
@@ -17,13 +18,21 @@ function parcelPos(p: Parcel) {
   return { x: X0 + c * (PW + GAP), y: Y0 + r * (PH + GAP) };
 }
 
-function describe(p: Parcel, year: number): string {
+function describe(p: Parcel, year: number, { t, tx }: I18n): string {
   switch (p.type) {
-    case 'academic': return `${p.name ?? 'Academic building'}${p.since > 1900 ? ` (built ${p.since})` : ' (historic core)'}`;
-    case 'lot': return `Surface lot, 250 spaces (paved ${p.since})`;
-    case 'garage': return `${p.name ?? 'Parking garage'}: 800 spaces, built ${p.since}, condition ${Math.round(p.condition)}%${p.condition < 40 ? ' — deteriorated' : ''}`;
-    case 'green': return p.since > 1948 ? `Green space (since ${p.since})` : 'Campus green';
-    case 'vacant': return `Vacant land — available for academic development (${year})`;
+    case 'academic':
+      return `${p.name ? tx(p.name) : t('map.academicBuilding')}${p.since > 1900 ? t('map.built', { year: p.since }) : t('map.historic')}`;
+    case 'lot':
+      return t('map.lotDesc', { year: p.since });
+    case 'garage':
+      return (
+        t('map.garageDesc', { name: p.name ? tx(p.name) : t('map.parkingGarage'), year: p.since, cond: Math.round(p.condition) }) +
+        (p.condition < 40 ? t('map.deteriorated') : '')
+      );
+    case 'green':
+      return p.since > 1948 ? t('map.greenSince', { year: p.since }) : t('map.campusGreen');
+    case 'vacant':
+      return t('map.vacantDesc', { year });
   }
 }
 
@@ -39,7 +48,7 @@ function Cars({ x, y, n, cols, seed }: { x: number; y: number; n: number; cols: 
   return <>{out}</>;
 }
 
-function ParcelShape({ p, occ }: { p: Parcel; occ: number }) {
+function ParcelShape({ p, occ, garageSign }: { p: Parcel; occ: number; garageSign: string }) {
   const { x, y } = parcelPos(p);
   switch (p.type) {
     case 'academic': {
@@ -94,7 +103,7 @@ function ParcelShape({ p, occ }: { p: Parcel; occ: number }) {
           ))}
           {dots}
           {worn && <path d={`M${x + 12} ${y + 6} l4 8 l-3 6 l5 10`} stroke="#3b2a1d" strokeWidth={1} fill="none" />}
-          <text x={x + 5} y={y + PH - 1} fontSize={7} fill="#1f2a44" fontWeight={700}>GARAGE</text>
+          <text x={x + 5} y={y + PH - 1} fontSize={7} fill="#1f2a44" fontWeight={700}>{garageSign}</text>
         </>
       );
     }
@@ -133,6 +142,8 @@ interface Props {
 }
 
 export default function CampusMap({ state, interactive = true }: Props) {
+  const i18n = useI18n();
+  const { t } = i18n;
   const [selected, setSelected] = useState<number | null>(null);
   const cap = capacity(state);
   const occ = cap > 0 ? Math.min(1, state.demand / cap) : 0;
@@ -154,7 +165,9 @@ export default function CampusMap({ state, interactive = true }: Props) {
 
   const sel = selected !== null ? state.parcels[selected] : null;
   const counts = state.parcels.reduce<Record<string, number>>((m, p) => ((m[p.type] = (m[p.type] ?? 0) + 1), m), {});
-  const ariaSummary = `Campus map, ${state.year}. ${counts.academic ?? 0} academic buildings, ${counts.lot ?? 0} surface lots, ${counts.garage ?? 0} garages, ${counts.green ?? 0} green spaces, ${counts.vacant ?? 0} vacant parcels.${spillCars > 0 ? ' Commuter cars are parked on neighborhood streets.' : ''}`;
+  const ariaSummary =
+    t('map.summary', { year: state.year, a: counts.academic ?? 0, l: counts.lot ?? 0, g: counts.garage ?? 0, gr: counts.green ?? 0, v: counts.vacant ?? 0 }) +
+    (spillCars > 0 ? t('map.spill') : '');
 
   return (
     <div className="map-wrap">
@@ -165,7 +178,7 @@ export default function CampusMap({ state, interactive = true }: Props) {
         {state.flags.annexLot && (
           <g>
             <rect x={253} y={4} width={107} height={26} fill="#6b6b6b" />
-            <text x={262} y={21} fontSize={8} fill="#f1d48d" fontWeight={700}>ANNEX LOT (400)</text>
+            <text x={262} y={21} fontSize={8} fill="#f1d48d" fontWeight={700}>{t('map.annex')}</text>
           </g>
         )}
         {/* Elm Street with spillover parking */}
@@ -174,12 +187,12 @@ export default function CampusMap({ state, interactive = true }: Props) {
         {Array.from({ length: spillCars }).map((_, i) => (
           <rect key={i} x={6 + i * 22} y={34} width={10} height={5} fill={CAR_COLORS[i % CAR_COLORS.length]} stroke="#111" strokeWidth={0.4} />
         ))}
-        <text x={292} y={45} fontSize={5} fill="#e9dfc8">ELM STREET</text>
+        <text x={292} y={45} fontSize={5} fill="#e9dfc8">{t('map.elm')}</text>
         {/* Campus boundary */}
         <rect x={X0 - 6} y={Y0 - 4} width={COLS * (PW + GAP) + 6} height={4 * (PH + GAP) + 2} fill="#e3d8b6" stroke="#4d7a46" strokeWidth={2} strokeDasharray="3 2" />
         {state.parcels.map((p) => {
           const { x, y } = parcelPos(p);
-          const label = describe(p, state.year);
+          const label = describe(p, state.year, i18n);
           return (
             <g
               key={`${p.id}-${p.type}-${p.since}`}
@@ -196,7 +209,7 @@ export default function CampusMap({ state, interactive = true }: Props) {
               }}
             >
               <title>{label}</title>
-              <ParcelShape p={p} occ={occ} />
+              <ParcelShape p={p} occ={occ} garageSign={t('map.garageSign')} />
               <rect className="parcel-outline" x={x} y={y} width={PW} height={PH} fill="none" stroke="#2d2d2d" strokeWidth={1} />
             </g>
           );
@@ -214,23 +227,23 @@ export default function CampusMap({ state, interactive = true }: Props) {
         {hasCommitment(state, 'shuttle') && (
           <g className="car-drive" style={{ animationDelay: '-4.5s', animationDuration: '7s' }}>
             <rect x={0} y={296} width={18} height={7} fill="#1f2a44" stroke="#f1d48d" strokeWidth={0.6} />
-            <text x={2} y={302} fontSize={5} fill="#f1d48d">SHUTTLE</text>
+            <text x={2} y={302} fontSize={5} fill="#f1d48d">{t('map.shuttleSign')}</text>
           </g>
         )}
-        <text x={270} y={302} fontSize={5} fill="#e9dfc8">WESTBRIDGE AVE</text>
+        <text x={270} y={302} fontSize={5} fill="#e9dfc8">{t('map.ave')}</text>
         {houses.bottom}
       </svg>
       {interactive && (
         <>
           <div className="map-legend" aria-hidden="true">
-            <span><i className="swatch" style={{ background: '#a5483a' }} />Academic</span>
-            <span><i className="swatch" style={{ background: '#6b6b6b' }} />Lot</span>
-            <span><i className="swatch" style={{ background: '#c3beb2' }} />Garage</span>
-            <span><i className="swatch" style={{ background: '#6f9c5c' }} />Green</span>
-            <span><i className="swatch" style={{ background: '#cbb98b' }} />Vacant</span>
+            <span><i className="swatch" style={{ background: '#a5483a' }} />{t('map.academic')}</span>
+            <span><i className="swatch" style={{ background: '#6b6b6b' }} />{t('map.lot')}</span>
+            <span><i className="swatch" style={{ background: '#c3beb2' }} />{t('map.garage')}</span>
+            <span><i className="swatch" style={{ background: '#6f9c5c' }} />{t('map.green')}</span>
+            <span><i className="swatch" style={{ background: '#cbb98b' }} />{t('map.vacant')}</span>
           </div>
           <div className="parcel-info" aria-live="polite">
-            {sel ? describe(sel, state.year) : <span className="muted">Select a parcel to inspect it. Each parcel is 5 land units.</span>}
+            {sel ? describe(sel, state.year, i18n) : <span className="muted">{t('map.prompt')}</span>}
           </div>
         </>
       )}
