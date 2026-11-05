@@ -174,7 +174,7 @@ describe('6. stakeholder satisfaction bounds', () => {
 
 describe('7. path dependence accumulation and reversal', () => {
   it('garage building accumulates inertia and makes conversion costlier', () => {
-    const asphalt = playFull(4, (s) => ['build_garage', 'build_lot', 'faculty_privileges']);
+    const asphalt = playFull(4, () => ['build_garage', 'build_lot', 'faculty_privileges']);
     const lean = playFull(4, () => ['transit_subsidy', 'shuttle']);
     expect(asphalt.ind.inertia).toBeGreaterThan(lean.ind.inertia + 20);
     const conv = getPolicy('convert_green')!;

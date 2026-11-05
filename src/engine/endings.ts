@@ -87,7 +87,8 @@ export function classifyEnding(s: GameState): Ending {
     return pick('transit', `${tdm} alternative-transportation programs; automobile dependence fell to ${Math.round(autoDependence)}/100.`);
   }
   const restricted = s.price >= 140 || s.counters.conversionsToAcademic + s.counters.conversionsToGreen >= 1;
-  if (autoDependence <= 42 && tdm <= 2 && garages <= 1 && restricted) {
+  const shortage = s.demand > 0 ? Math.max(0, s.demand - capacity(s)) / s.demand : 0;
+  if (autoDependence <= 42 && tdm <= 2 && garages <= 1 && restricted && shortage <= 0.35) {
     return pick('urbanist', `Limited supply and few programs, yet automobile dependence ended at ${Math.round(autoDependence)}/100.`);
   }
   if (s.cash >= 6_000_000 || (s.lastNetRevenue >= 400_000 && s.price >= 200)) {
@@ -142,7 +143,8 @@ export function influences(s: GameState): string[] {
   const transit = s.commitments.find((x) => x.id === 'transitSubsidy');
   if (transit && transit.since < 1990) out.push(`The transit subsidy begun in ${transit.since} matured into an institutional habit, lowering parking demand for decades.`);
   if (s.counters.conversionsToAcademic + s.counters.conversionsToGreen > 0) {
-    out.push(`${s.counters.conversionsToAcademic + s.counters.conversionsToGreen} parking facilities were converted to other uses, each one costlier as inertia accumulated.`);
+    const n = s.counters.conversionsToAcademic + s.counters.conversionsToGreen;
+    out.push(`${n} parking ${n === 1 ? 'facility was' : 'facilities were'} converted to other uses; conversions grow costlier as inertia accumulates.`);
   }
   if (s.counters.academicShortfallTurns > 0) out.push(`Parking occupied land the academic mission later needed: ${s.counters.academicShortfallTurns} review periods ended with an academic space shortfall.`);
   if (s.ind.inertia >= 60) out.push(`Institutional inertia ended at ${Math.round(s.ind.inertia)}/100: reversing course had become expensive.`);
