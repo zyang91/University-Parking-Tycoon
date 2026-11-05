@@ -8,7 +8,8 @@ import {
   COMMITMENT_LABELS,
   type GameState,
 } from '../engine';
-import { money, signed } from '../format';
+import { signed } from '../format';
+import { useI18n } from '../i18n/I18nContext';
 
 export function Info({ text }: { text: string }) {
   return (
@@ -45,6 +46,7 @@ export function Meter({ label, value, prev, invert, tip, icon }: { label: string
 }
 
 export default function Dashboard({ state }: { state: GameState }) {
+  const { t, tx, money } = useI18n();
   const prev = state.stats.length >= 2 ? state.stats[state.stats.length - 2] : undefined;
   const cap = capacity(state);
   const demand = state.demand;
@@ -60,26 +62,32 @@ export default function Dashboard({ state }: { state: GameState }) {
   return (
     <>
       <section className="panel" aria-labelledby="dash-fin">
-        <h2 className="panel-title" id="dash-fin"><Coins size={16} aria-hidden /> Financial Health</h2>
+        <h2 className="panel-title" id="dash-fin"><Coins size={16} aria-hidden /> {t('dash.finance')}</h2>
         <div className="stat-row">
-          <span className="label">Cash reserves <Info text="University parking reserves in constant game dollars. Negative reserves borrow from a $1M credit line at 4% interest." /></span>
+          <span className="label">{t('dash.cash')} <Info text={t('dash.cashTip')} /></span>
         </div>
         <div className={`big-number${state.cash < 0 ? ' neg' : ''}`}>{money(state.cash)}</div>
         <div className="stat-row">
-          <span className="label">Net operating result / yr <Info text="Permit revenue minus operations, maintenance, program costs, debt service and interest. Construction spending is a capital cost, not included here." /></span>
+          <span className="label">{t('dash.net')} <Info text={t('dash.netTip')} /></span>
           <span className={`num ${state.lastNetRevenue < 0 ? 'down' : ''}`}>{fin ? money(state.lastNetRevenue) : '—'}</span>
         </div>
-        <div className="stat-row"><span className="label">Annual permit price</span><span className="num">${state.price}</span></div>
-        <div className="stat-row"><span className="label">Program commitments / yr</span><span className="num">{money(programCost)}</span></div>
-        <div className="stat-row"><span className="label">Debt service / yr</span><span className="num">{money(debt)}</span></div>
+        <div className="stat-row"><span className="label">{t('dash.price')}</span><span className="num">${state.price}</span></div>
+        <div className="stat-row"><span className="label">{t('dash.programs')}</span><span className="num">{money(programCost)}</span></div>
+        <div className="stat-row"><span className="label">{t('dash.debt')}</span><span className="num">{money(debt)}</span></div>
       </section>
 
       <section className="panel" aria-labelledby="dash-park">
-        <h2 className="panel-title" id="dash-park"><SquareParking size={16} aria-hidden /> Parking</h2>
-        <div className="stat-row"><span className="label">Capacity</span><span className="num">{cap.toLocaleString()} spaces{prev && cap !== prev.capacity && <span className={`delta ${cap > prev.capacity ? 'up' : 'down'}`}>{signed(cap - prev.capacity)}</span>}</span></div>
+        <h2 className="panel-title" id="dash-park"><SquareParking size={16} aria-hidden /> {t('dash.parking')}</h2>
         <div className="stat-row">
-          <span className="label">Demand <Info text="Cars seeking parking. Rises with enrollment and automobile dependence; falls with higher prices, transit quality and TDM programs. Spare capacity slowly induces new demand." /></span>
-          <span className="num">{demand.toLocaleString()} cars</span>
+          <span className="label">{t('dash.capacity')}</span>
+          <span className="num">
+            {t('dash.spaces', { n: cap.toLocaleString() })}
+            {prev && cap !== prev.capacity && <span className={`delta ${cap > prev.capacity ? 'up' : 'down'}`}>{signed(cap - prev.capacity)}</span>}
+          </span>
+        </div>
+        <div className="stat-row">
+          <span className="label">{t('dash.demand')} <Info text={t('dash.demandTip')} /></span>
+          <span className="num">{t('dash.cars', { n: demand.toLocaleString() })}</span>
         </div>
         <div className="occ-bar" aria-hidden="true" style={{ margin: '6px 0' }}>
           <div style={{ width: `${(cap > 0 ? Math.min(1, occupied / Math.max(cap, demand)) : 0) * 100}%`, background: 'var(--navy)' }} />
@@ -87,52 +95,61 @@ export default function Dashboard({ state }: { state: GameState }) {
           {shortage > 0 && <div style={{ width: `${(shortage / demand) * 100}%`, background: 'var(--brick)' }} />}
         </div>
         <div className="stat-row small">
-          <span className="label">Occupancy {Math.round(occPct * 100)}%</span>
-          {shortage > 0 ? <span className="down num">{shortage.toLocaleString()} short</span> : <span className="num muted">{vacant.toLocaleString()} empty</span>}
+          <span className="label">{t('dash.occupancy', { pct: Math.round(occPct * 100) })}</span>
+          {shortage > 0 ? (
+            <span className="down num">{t('dash.short', { n: shortage.toLocaleString() })}</span>
+          ) : (
+            <span className="num muted">{t('dash.empty', { n: vacant.toLocaleString() })}</span>
+          )}
         </div>
       </section>
 
       <section className="panel" aria-labelledby="dash-stake">
-        <h2 className="panel-title" id="dash-stake"><Users size={16} aria-hidden /> Stakeholders</h2>
-        <Meter label="Faculty" value={state.ind.faculty} prev={prev?.faculty} tip="Dislike prices (especially when car-dependent), shortages and losing spaces. Love privileges." />
-        <Meter label="Students" value={state.ind.students} prev={prev?.students} tip="Value transit, bikes, shuttles, green space, and fairness. Dislike reserved-space privileges." />
-        <Meter label="Neighborhood" value={state.ind.neighborhood} prev={prev?.neighborhood} tip="Damaged by spillover parking, garage traffic and campus expansion. Improved by shuttles, shared parking and green space." />
+        <h2 className="panel-title" id="dash-stake"><Users size={16} aria-hidden /> {t('dash.stakeholders')}</h2>
+        <Meter label={t('ind.faculty')} value={state.ind.faculty} prev={prev?.faculty} tip={t('dash.facultyTip')} />
+        <Meter label={t('ind.students')} value={state.ind.students} prev={prev?.students} tip={t('dash.studentsTip')} />
+        <Meter label={t('ind.neighborhood')} value={state.ind.neighborhood} prev={prev?.neighborhood} tip={t('dash.neighborhoodTip')} />
       </section>
 
       <section className="panel" aria-labelledby="dash-sys">
-        <h2 className="panel-title" id="dash-sys"><Gauge size={16} aria-hidden /> Campus Systems</h2>
-        <Meter label="Sustainability" icon={<Leaf size={13} aria-hidden />} value={state.ind.sustainability} prev={prev?.sustainability} tip="Environmental performance. Drifts toward a target set by car dependence, paved land, green space and TDM programs." />
-        <Meter label="Automobile dependence" icon={<SquareParking size={13} aria-hidden />} value={state.ind.autoDependence} prev={prev?.autoDependence} invert tip="Share of affiliates who expect to drive. Abundant, cheap parking raises it; scarcity, pricing and alternatives lower it. Changes slowly." />
-        <Meter label="Institutional inertia" icon={<Lock size={13} aria-hidden />} value={state.ind.inertia} prev={prev?.inertia} invert tip="Path dependence. Garages, lots and entitlements raise it; it makes conversions, price hikes and revocations costlier. Decays slowly, faster with TDM programs." />
+        <h2 className="panel-title" id="dash-sys"><Gauge size={16} aria-hidden /> {t('dash.systems')}</h2>
+        <Meter label={t('ind.sustainability')} icon={<Leaf size={13} aria-hidden />} value={state.ind.sustainability} prev={prev?.sustainability} tip={t('dash.sustainabilityTip')} />
+        <Meter label={t('ind.autoDependence')} icon={<SquareParking size={13} aria-hidden />} value={state.ind.autoDependence} prev={prev?.autoDependence} invert tip={t('dash.autoTip')} />
+        <Meter label={t('ind.inertia')} icon={<Lock size={13} aria-hidden />} value={state.ind.inertia} prev={prev?.inertia} invert tip={t('dash.inertiaTip')} />
       </section>
 
       <section className="panel" aria-labelledby="dash-land">
-        <h2 className="panel-title" id="dash-land"><Building2 size={16} aria-hidden /> Land</h2>
+        <h2 className="panel-title" id="dash-land"><Building2 size={16} aria-hidden /> {t('dash.land')}</h2>
         <div className="stat-row">
-          <span className="label">Land for academic development <Info text="Vacant land units. The university builds on vacant land as it grows; when none is left it paves over greens, then runs a shortfall." /></span>
+          <span className="label">{t('dash.landAvail')} <Info text={t('dash.landTip')} /></span>
           <span className="num">{academicLand(state)} / 100</span>
         </div>
-        {shortfall > 0 && <div className="stat-row small down">Academic shortfall: {shortfall} parcel{shortfall > 1 ? 's' : ''}</div>}
+        {shortfall > 0 && <div className="stat-row small down">{t('dash.shortfall', { n: shortfall })}</div>}
       </section>
 
       <section className="panel" aria-labelledby="dash-commit">
-        <h2 className="panel-title" id="dash-commit"><Landmark size={16} aria-hidden /> Policy Commitments</h2>
+        <h2 className="panel-title" id="dash-commit"><Landmark size={16} aria-hidden /> {t('dash.commitments')}</h2>
         {state.commitments.length === 0 && state.debts.length === 0 ? (
-          <p className="small muted">No standing commitments. Yet.</p>
+          <p className="small muted">{t('dash.none')}</p>
         ) : (
           <ul className="commit-list">
-            {state.commitments.map((c) => (
-              <li key={c.id}>
-                <span>{COMMITMENT_LABELS[c.id]} <span className="muted small">since {c.since}</span></span>
-                <span className="num small">{commitmentAnnualCost(state, c.id) ? `${money(commitmentAnnualCost(state, c.id))}/yr` : '—'}</span>
-              </li>
-            ))}
-            {state.debts.map((d, i) => (
-              <li key={`d${i}`}>
-                <span>{d.label} <span className="muted small">{d.turnsRemaining * 5} yrs left</span></span>
-                <span className="num small">{money(d.annualPayment)}/yr</span>
-              </li>
-            ))}
+            {state.commitments.map((c) => {
+              const cost = commitmentAnnualCost(state, c.id);
+              return (
+                <li key={c.id}>
+                  <span>{tx(COMMITMENT_LABELS[c.id])} <span className="muted small">{t('dash.since', { year: c.since })}</span></span>
+                  <span className="num small">{cost ? t('desk.perYear', { amount: money(cost) }) : '—'}</span>
+                </li>
+              );
+            })}
+            {state.debts.map((d, i) => {
+              return (
+                <li key={`d${i}`}>
+                  <span>{tx(d.label)} <span className="muted small">{t('dash.yearsLeft', { n: d.turnsRemaining * 5 })}</span></span>
+                  <span className="num small">{t('desk.perYear', { amount: money(d.annualPayment) })}</span>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

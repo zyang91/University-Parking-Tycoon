@@ -5,12 +5,14 @@ import type {
   CommitmentId,
   Effects,
   GameState,
+  L,
   Parcel,
   ParcelType,
   Snapshot,
 } from './types';
 
-export const SAVE_VERSION = 1;
+// v2: all generated text is stored bilingually ({ en, zh }).
+export const SAVE_VERSION = 2;
 
 /** Gameplay constants (illustrative, in constant game dollars). */
 export const C = {
@@ -206,7 +208,7 @@ export function findParcel(s: GameState, types: ParcelType[]): Parcel | undefine
   return undefined;
 }
 
-export function setParcel(p: Parcel, type: ParcelType, year: number, name?: string): void {
+export function setParcel(p: Parcel, type: ParcelType, year: number, name?: L): void {
   p.type = type;
   p.since = year;
   p.condition = 100;

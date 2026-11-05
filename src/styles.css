@@ -21,8 +21,8 @@
   --line: #c9b994;
   --shadow: 0 2px 0 rgba(38, 34, 28, 0.18);
   --radius: 6px;
-  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, serif;
-  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --serif: 'Iowan Old Style', 'Palatino Linotype', Palatino, Georgia, 'Noto Serif SC', 'Songti SC', 'STSong', 'SimSun', serif;
+  --sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'PingFang SC', 'Hiragino Sans GB', 'Microsoft YaHei', 'Noto Sans SC', sans-serif;
   --mono: ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 }
 
@@ -299,3 +299,20 @@ kbd { font-family: var(--mono); font-size: 12px; background: #fff; border: 1px s
   .tab svg { display: none; }
   .topbar { gap: 10px; }
 }
+
+/* ---------- Settings dialog ---------- */
+.modal-backdrop { position: fixed; inset: 0; background: rgba(31, 42, 68, 0.55); display: grid; place-items: center; z-index: 60; padding: 16px; animation: fadein 0.15s ease-out; }
+@keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+.modal { background: #fbf6ea; border: 3px solid var(--charcoal); box-shadow: 6px 6px 0 var(--navy); border-radius: 4px; padding: 18px 20px; width: min(420px, 100%); animation: slidein 0.2s ease-out; }
+.modal-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+.modal-head h2 { font-size: 22px; color: var(--navy); }
+.lang-options { border: 2px solid var(--line); border-radius: var(--radius); padding: 10px 12px 12px; margin: 0 0 10px; display: grid; gap: 8px; }
+.lang-options legend { display: inline-flex; align-items: center; gap: 6px; font-weight: 700; padding: 0 4px; color: var(--navy); }
+.lang-option { display: flex; align-items: center; gap: 10px; padding: 8px 10px; border: 2px solid var(--line); border-radius: var(--radius); background: #fff; cursor: pointer; font-size: 16px; }
+.lang-option.active { border-color: var(--gold); background: #fff6dc; font-weight: 700; }
+.lang-option input { accent-color: var(--navy); width: 16px; height: 16px; }
+
+/* Chinese text: no letter-spacing on uppercase labels, slightly more line height */
+:lang(zh-CN) .panel-title, :lang(zh-CN) .phase-label, :lang(zh-CN) .kind, :lang(zh-CN) .stamp { letter-spacing: 0.04em; }
+:lang(zh-CN) body { line-height: 1.6; }
+@media (max-width: 1400px) { .btn-label { display: none; } }
